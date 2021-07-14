@@ -6,6 +6,7 @@ export default function Destinations({setResort}){
     API.get("/destinations")
   .then(res => res.data.destinations), {staleTime: Infinity})
 
+
   if(destinations.isError){
       console.log(destinations.error)
       return null
@@ -17,7 +18,7 @@ export default function Destinations({setResort}){
   )
   : (
       <ul>
-          {destinations.data.map(resort => (
+          {destinations?.data.map(resort => (
               <li key={resort.id} onClick={()=>setResort(resort)}>{resort.name}</li>
           ))}
       </ul>

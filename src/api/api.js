@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const API = axios.create({
-    baseURL: '/v1',
+    baseURL: 'https://api.themeparks.wiki/v1',
     headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
