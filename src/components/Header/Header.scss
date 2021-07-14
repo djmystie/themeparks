@@ -1,0 +1,19 @@
+header {
+    width: 100%;
+    padding: .5em 0;
+    background-color:black;
+    color: white;
+    display:flex;
+    justify-content: space-between;
+    font-size: 1.5em;
+    font-weight: bold;
+    position:sticky;
+    top:0;
+    .icon {
+        width: 30px;
+        padding: 0 10px;
+    }
+    .pointer {
+        cursor: pointer;
+    }
+}
