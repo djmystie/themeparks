@@ -5,6 +5,12 @@ export default function Destinations({setResort}){
     const destinations = useQuery("destinations", () => 
     API.get("/destinations")
   .then(res => res.data.destinations), {staleTime: Infinity})
+
+  if(destinations.isError){
+      console.log(destinations.error)
+      return null
+  }
+
   return destinations.isLoading
   ?(
       <h3>Loading...</h3>
