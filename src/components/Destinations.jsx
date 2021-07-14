@@ -4,7 +4,7 @@ import { useQuery } from 'react-query'
 export default function Destinations({setResort}){
     const destinations = useQuery("destinations", () => 
     API.get("/destinations")
-  .then(res => res.data), {staleTime: Infinity})
+  .then(res => res.data.destinations), {staleTime: Infinity})
 
 
   if(destinations.isError){
