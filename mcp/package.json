@@ -1,0 +1,20 @@
+{
+  "name": "disneyworld-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only Walt Disney World MCP server using ThemeParks.wiki",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test",
+    "smoke": "node scripts/smoke.js",
+    "start:http": "node src/http.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}

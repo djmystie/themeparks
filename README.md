@@ -1,3 +1,7 @@
+# Disney World MCP server
+
+The repository now includes a separate read-only MCP server for Disney World live waits, park hours, shows, dining and history. See [mcp/README.md](mcp/README.md) for installation, client configuration and verification. The original React application is unchanged.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
