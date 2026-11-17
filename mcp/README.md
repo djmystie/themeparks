@@ -158,3 +158,80 @@ the existing local Codex stdio registration is independent.
 References: [Cloudflare managed OAuth](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/managed-oauth/),
 [Access JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/),
 [ChatGPT custom MCP setup](https://developers.openai.com/api/docs/guides/custom-mcp-server).
+
+## Five-minute historical archive
+
+An independent collector stores the complete Walt Disney World live response,
+entity directory and all six parks' published schedules every five minutes,
+aligned to UTC :00/:05/:10/etc. It also samples immediately on startup. Each
+successful five-minute slot is unique, including across restarts. It does not
+invent samples for downtime or backfill older upstream history. Polling cannot
+capture changes that happen entirely between samples.
+
+Full entity details are refreshed daily in batches of 30 per tick (initial
+coverage of the current 516 resort/directory entities takes about 90 minutes).
+Requests are sequential, paced, timeout-limited and respect persisted HTTP 429
+backoff. There is no MCP response cache in the collector: each scheduled capture
+requests the upstream feed. Source records may themselves be old or missing.
+
+Every response body is stored losslessly as gzip-compressed text, deduplicated
+by SHA-256, with URL path, collection timestamp, HTTP status and selected source
+cache headers. This retains all source-provided queues, prices, forecasts,
+boarding groups, dining availability, showtimes and future fields. No extra data
+is inferred when the feed omits it. Raw error responses and failed run records
+are retained as well. No authentication headers are stored.
+
+SQLite tables:
+
+- `runs`: UTC five-minute slots, start/end and complete/partial/interrupted status.
+- `responses` + `payloads`: timestamped response references and compressed bodies.
+- `observations`: indexed entity/status/standby wait observations, source
+  `lastUpdated`, collection time and raw response linkage. Null is unknown; zero
+  is retained. Stale observations are retained for later analysis.
+- `entities`: latest directory for names, types and parent relationships.
+- `state`: persisted backoff and backup progress.
+
+Deployment on AI-two:
+
+```sh
+# Run from mcp/. Both parent disks must be mounted first.
+# Create these directories once, owned by container UID 1000:
+# /mnt/bulk-storage/disneyworld-history
+# /mnt/docker-storage/disneyworld-history-backups
+docker compose -f compose.collector.yml up -d --build
+docker exec disneyworld-history node src/archive-query.js
+```
+
+Database: `/mnt/bulk-storage/disneyworld-history/history.sqlite`. It is outside
+Git and the container filesystem. WAL transactions use FULL synchronization.
+The collector restarts automatically, exposes no ports, and pauses with an error
+when less than 2 GiB remains free. Docker health checks report failed/stale
+collection; no external alert delivery is configured. Run only one collector
+against this database. Do not use `--remove-orphans` with either Compose file:
+the HTTP and collector services share the Compose project.
+
+A consistent daily SQLite backup is atomically replaced at
+`/mnt/docker-storage/disneyworld-history-backups/history-latest.sqlite` on a
+separate local disk. This is a single rolling copy, not offsite/versioned backup.
+Backup failures are logged and retried next tick. Historical rows are never
+pruned automatically. Inspect growth periodically.
+
+Query an entity by UUID and half-open UTC range (outputs JSON lines):
+
+```sh
+docker exec disneyworld-history node src/archive-query.js ENTITY_UUID 2026-11-17T00:00:00Z 2026-11-18T00:00:00Z
+```
+
+A raw payload can be recovered by joining `responses.payload_hash` to
+`payloads.hash`, decompressing `json_gzip`, and parsing its JSON. `Archive.payload`
+implements that operation. For a safe manual backup of a running database:
+
+```sh
+docker exec disneyworld-history node src/archive-backup.js /backups/manual.sqlite
+```
+
+Restore only while the collector is stopped; preserve the existing database and
+its WAL/SHM files together before replacing it with a verified backup. Never copy
+only a live SQLite main file without its WAL. Existing MCP `get_wait_history`
+still queries ThemeParks.wiki; the private archive is currently accessible through
+SQL and the CLI, ready for a future read-only MCP history tool.
