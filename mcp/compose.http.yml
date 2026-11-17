@@ -1,0 +1,26 @@
+services:
+  disneyworld-http:
+    build: .
+    image: disneyworld-mcp:http
+    container_name: disneyworld-mcp-http
+    restart: unless-stopped
+    command: ["node", "src/http.js"]
+    ports:
+      - "${MCP_BIND_IP:-127.0.0.1}:3001:3001"
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "3001"
+      MCP_ALLOWED_HOSTS: "disdata.creekwood.app,127.0.0.1,10.10.50.242"
+      CF_ACCESS_TEAM_DOMAIN: "${CF_ACCESS_TEAM_DOMAIN:?Set the Cloudflare Access team origin}"
+      CF_ACCESS_AUD: "${CF_ACCESS_AUD:?Set the Disney Data application audience}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    cpus: 1
+    pids_limit: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"

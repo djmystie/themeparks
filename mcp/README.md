@@ -110,3 +110,51 @@ npm run smoke
 ```
 
 Tests cover MCP tool discovery/calls, Disney World scope, zero/null/stale waits, recommendations, show windows, party sizes, input validation, caching, conditional requests, rate limits and HTTP authentication/host/origin protection. HTTP tests bind an ephemeral loopback port. Smoke tests launch a real stdio subprocess and exercise all tools against the live API, including history coverage, daily and raw modes. They require network access and may fail during upstream outages or rate limiting. In proxy environments, use `NODE_USE_ENV_PROXY=1 npm run smoke` on Node 24.
+
+## Cloudflare Access deployment
+
+The HTTP server also supports Cloudflare Access managed OAuth. Set
+`CF_ACCESS_TEAM_DOMAIN` to your HTTPS team origin and `CF_ACCESS_AUD` to the
+application audience. In this mode, do not set `MCP_AUTH_TOKEN`. The origin
+verifies the signature, issuer, audience and expiry of `Cf-Access-Jwt-Assertion`;
+bearer tokens alone do not bypass this check. Local stdio remains unchanged.
+
+For the AI-two deployment, copy `.env.http.example` to `.env.http`, fill in the
+Disney Data audience, then run:
+
+```sh
+docker compose --env-file .env.http -f compose.http.yml up -d --build
+```
+
+This starts a non-root, read-only container with an automatic restart policy.
+The configured LAN address allows the existing ai-one tunnel to reach AI-two;
+no router port forwarding is required. Direct requests without a valid Access
+assertion are rejected, including requests from the LAN.
+
+Create the Cloudflare Access application **before** publishing the hostname:
+
+1. Zero Trust → Access controls → Applications → Add → Self-hosted.
+2. Name `Disney Data`, hostname `disdata.creekwood.app`, no path restriction.
+3. Allow only the owner's email; select One-time PIN as the login method.
+4. Advanced settings → Managed OAuth → enable; save. Copy its Application
+   Audience (AUD) into `.env.http`.
+5. Networks → Connectors → Cloudflare Tunnels → `ai-one` → Published application
+   routes (older UI: Public Hostnames). Add `disdata.creekwood.app`, service
+   `HTTP`, URL `10.10.50.242:3001`. Leave the path empty and preserve existing routes.
+6. Verify public OAuth discovery and unauthenticated rejection before connecting
+   ChatGPT. Then add `https://disdata.creekwood.app/mcp` as a custom MCP server,
+   choose OAuth, and complete email login. Do not choose No authentication.
+
+Cloudflare handles OAuth metadata, registration and token issuance at the edge.
+Do not bypass Access for discovery paths manually; managed OAuth handles those.
+If client registration is restricted, use the exact redirect URI reported by
+ChatGPT instead of enabling unrestricted redirect URLs.
+
+A successful origin test is not a successful ChatGPT connection. Complete an
+actual ChatGPT tool call to verify the full login and transport path. To stop
+this HTTP deployment, use `docker compose --env-file .env.http -f compose.http.yml down`;
+the existing local Codex stdio registration is independent.
+
+References: [Cloudflare managed OAuth](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/managed-oauth/),
+[Access JWT validation](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/authorization-cookie/validating-json/),
+[ChatGPT custom MCP setup](https://developers.openai.com/api/docs/guides/custom-mcp-server).
