@@ -29,6 +29,22 @@ Example configuration for an MCP client that supports local stdio servers (repla
 
 To use an API key, add `"env": { "THEMEPARKS_API_KEY": "your-key" }` inside the `disneyworld` entry. Use your client's secret storage when available. Proxy-based environments may need their proxy variables forwarded to the subprocess. Node 24 supports `NODE_USE_ENV_PROXY=1`.
 
+## Local Codex installation with Docker
+
+Build the self-contained image from the repository root (no host Node installation needed):
+
+```sh
+docker build -t disneyworld-mcp:1.0.0 mcp
+codex mcp add disneyworld -- /usr/bin/docker run --rm -i --init --read-only --cap-drop=ALL --security-opt=no-new-privileges --memory=256m --cpus=1 --pids-limit=128 disneyworld-mcp:1.0.0
+codex mcp get disneyworld
+```
+
+Codex starts the stdio container when it loads the MCP server. The image and Codex configuration survive restarts; Docker must be available to the Codex user and start at boot. No listening port, reverse proxy, token, Disney login, or background HTTP service is needed. Each client process has its own API cache. Rebuild the image after updating the source.
+
+For an already-running Codex app-server, its supported `config/mcpServer/reload` RPC reloads MCP configuration. Otherwise open a new Codex session. Verify `mcpServerStatus/list` reports all eight tools, then call a live tool. A paired phone controlling this AI-two Codex host uses the host's tools; this is separate from installing a custom MCP app in ordinary ChatGPT chats.
+
+Remove the registration with `codex mcp remove disneyworld`. Public hosting and ChatGPT web OAuth setup are separate deployment steps.
+
 ## Tools
 
 | Tool | Inputs | Behavior |
